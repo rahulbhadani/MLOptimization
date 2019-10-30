@@ -1,4 +1,5 @@
 # Project Specific
+Network/MNIST_data/
 venv/
 *.pyc
 *.paths
