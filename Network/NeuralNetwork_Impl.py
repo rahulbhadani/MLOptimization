@@ -4,7 +4,8 @@ Implement a Neural Network with n number of hidden layers
 '''
 
 ##  My Import
-from NeuralNetwork import NLayerPerceptron
+from  NeuralNetwork import NLayerPerceptron
+from ..Optimizers import AddSign
 import sys
 import warnings
 
@@ -33,4 +34,12 @@ batch_x, batch_y = mnist.train.next_batch(batchSize)
 optimizer = tf.train.AdamOptimizer
 
 N = NLayerPerceptron()
-N.train(x= batch_x, y = batch_y, optimizer=optimizer)
+N.train(data = mnist, optimizer=optimizer)
+
+N1 = NLayerPerceptron(num_hidden_layer=12,  hidden_layer_dimensions = [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50])
+N1.train(data = mnist, optimizer=optimizer)
+
+N2 = NLayerPerceptron()
+
+optimizer = tf.train.RMSPropOptimizer
+N2.train(data = mnist, optimizer=optimizer)

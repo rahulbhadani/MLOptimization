@@ -33,6 +33,9 @@ class NLayerPerceptron:
         We first define the network architecture by passing network configuration through the constructor
 
         '''
+        if len(hidden_layer_dimensions) != num_hidden_layer:
+            raise ValueError("Number of hidden layer dimensions must match number of hidden layers")
+        
         # Computational Graph for the Network
         self.graph = tf.Graph()
         self.session = tf.Session(graph = self.graph)
@@ -67,7 +70,7 @@ class NLayerPerceptron:
                         self.weights.append(w)
                         b = tf.Variable(tf.constant(0.1, shape=[hidden_layer_dimensions[0]]), name="biases_input")
                         self.biases.append(b)
-                        a = tf.nn.softmax(tf.matmul(self.input, w) + b)
+                        a = tf.nn.relu(tf.matmul(self.input, w) + b)
                         self.activation.append(a)
                         d= tf.nn.dropout(a, self.keep_prob)
                         self.dropout.append(d)
@@ -101,31 +104,31 @@ class NLayerPerceptron:
                 self.init_vars = tf.variables_initializer(self.variables)
 
             with tf.variable_scope(self.scope_name):
-                print(self.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope_name))
+                v = self.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope_name)
+                for vi in v:
+                    print(vi)
+        self.training_accuracy = []
+        self.testing_accuracy = []
 
-    def train(self, x, y, optimizer, learning_rate = 0.01, keep_prob=0.6,):
 
-        print("We Print Something")
-        ## WHY IS THIS EMPTY HERE
+    def train(self, data, optimizer, learning_rate = 0.01, keep_prob=0.6, num_epoch = 16, batch_size = 128):
+
         with tf.variable_scope(self.scope_name) as scope:
-            print(self.scope_name)
-            print(self.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope_name))
+            print("Scope Name: ", self.scope_name)
+            v = self.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope_name)
+            for vi in v:
+                print(vi)
 
         with self.graph.as_default():
             with tf.variable_scope(self.scope_name) as scope:
 
-        #     print(self.labels)
-        #     print(self.activation[len(self.activation)-1])
                 loss = tf.nn.softmax_cross_entropy_with_logits(labels = self.labels, logits = self.activation[len(self.activation)-1])
                 print("Loss = ", loss)
                 train_step = optimizer(learning_rate).minimize(loss)
-                #train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
-
 
                 correct_prediction = tf.equal(tf.argmax(self.activation[len(self.activation)-1], 1), tf.argmax(self.labels, 1))
 
                 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
 
             tf.summary.scalar("Accuracy", accuracy)
             tf.summary.scalar("Loss", tf.reduce_mean(loss))
@@ -138,13 +141,28 @@ class NLayerPerceptron:
                 sess.run(init_train)
                 #sess.run(self.init_vars)
                 # Train the network
-                for step in range(20000):
-                    feed_dict = {self.input:x, self.labels: y, self.keep_prob: keep_prob}
-                    sess.run([train_step, loss], feed_dict)
-                    if step % 1000 == 0:
-                        feed_dict = {self.input:x, self.labels: y, self.keep_prob: 1.0}
+                for step in range(num_epoch):
+                    average_accuracy = 0.0
+                    average_loss = 0.0
+                    total_batch = int(data.train.num_examples/batch_size)
+                    for i in range(total_batch):
+                        batch_x, batch_y = data.train.next_batch(batch_size)
+                        feed_dict = {self.input:batch_x, self.labels: batch_y, self.keep_prob: keep_prob}
+                        sess.run([train_step, loss], feed_dict)
+                        feed_dict = {self.input:batch_x, self.labels: batch_y, self.keep_prob: 1.0}
                         acc = sess.run(accuracy,  feed_dict)
-                        print("Mid Train Accuracy is : ", acc, " at step: ", step )
-                feed_dict = {self.input:x, self.labels: y, self.keep_prob: 1.0}
+                        average_accuracy += acc/total_batch
+                        #print("Mid Train Accuracy is : ", acc, " at step: ", step )
+                    if(step % 4 == 0):
+                        print("Epoch:", '%05d' % (step+1), "Average accuracy =","{:.8f}".format(average_accuracy))
+                
+                # Training Accuracy
+                feed_dict = {self.input:data.train.images, self.labels: data.train.labels, self.keep_prob: 1.0}
                 acc = sess.run(accuracy,  feed_dict)
                 print("Final Training Accuracy:", acc)
+
+                # Testing Accuracy
+                feed_dict = {self.input:data.test.images, self.labels: data.test.labels, self.keep_prob: 1.0}
+                acc = sess.run(accuracy,  feed_dict)
+                print("Final Testing Accuracy:", acc)
+
